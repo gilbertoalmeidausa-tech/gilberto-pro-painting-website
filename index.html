@@ -56,7 +56,7 @@
   /* ---------- SAFE MODE ----------
      If JavaScript fails, the preloader dismisses itself
      and all content still appears. */
-  html:not([data-js]) .preloader{animation:preFall .6s ease 2.4s forwards}
+  html:not([data-js]) .preloader{animation:preFall .5s ease .7s forwards}
   @keyframes preFall{to{transform:translateY(-101%);visibility:hidden}}
   html:not([data-js]) .h-fade,
   html:not([data-js]) .reveal,
@@ -145,9 +145,9 @@
   .preloader{
     position:fixed;inset:0;z-index:4000;background:var(--bg);
     display:flex;align-items:center;justify-content:center;
-    transition:transform .85s cubic-bezier(.76,0,.24,1);
+    transition:opacity .32s ease;
   }
-  .preloader.done{transform:translateY(-100%)}
+  .preloader.done{opacity:0}
   .pre-brand{font:600 clamp(2rem,5vw,3.2rem) Georgia, 'Times New Roman', serif;letter-spacing:-.02em;text-align:center}
   .pre-brand b{color:var(--accent);font-weight:600}
   .pre-logo{width:clamp(200px,42vw,300px);height:auto;display:block}
@@ -1265,11 +1265,11 @@
       preDone = true;
       pre.classList.add('done');
       document.body.classList.add('loaded');
-      setTimeout(function(){ if (pre.parentNode) pre.parentNode.removeChild(pre); }, 950);
+      setTimeout(function(){ if (pre.parentNode) pre.parentNode.removeChild(pre); }, 340);
     }
     if (reduced) { finishPre(); }
     else {
-      var t0 = performance.now(), dur = 1050;
+      var t0 = performance.now(), dur = 650;
       (function tickPre(t){
         var p = Math.min((t - t0) / dur, 1);
         var e = 1 - Math.pow(1 - p, 3);
@@ -1277,7 +1277,10 @@
         preBar.style.width = (e * 100) + '%';
         if (p < 1) requestAnimationFrame(tickPre); else finishPre();
       })(t0);
-      setTimeout(finishPre, 2800);
+      // if the page is already fully loaded sooner, hide the splash immediately
+      if (document.readyState === 'complete') finishPre();
+      else addEventListener('load', finishPre);
+      setTimeout(finishPre, 800); // hard cap so the splash is never long
     }
 
     /* ---------- custom cursor ---------- */
