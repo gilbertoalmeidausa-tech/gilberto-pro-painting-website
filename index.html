@@ -384,6 +384,10 @@
     filter:grayscale(1) contrast(1.06) brightness(.92);
     transition:transform .9s cubic-bezier(.19,1,.22,1),filter .6s ease}
   .case-media:hover img{transform:scale(1.045);filter:grayscale(0) contrast(1) brightness(1)}
+  /* Touch/mobile devices have no hover: show Recent Work images in full color by default */
+  @media (hover: none){
+    .case-media img{filter:grayscale(0) contrast(1) brightness(1)}
+  }
   .case-metric{
     position:absolute;top:16px;left:16px;z-index:1;
     background:var(--accent);color:var(--ink);
