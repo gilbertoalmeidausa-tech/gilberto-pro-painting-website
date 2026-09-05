@@ -1,0 +1,28 @@
+# Backups
+*.BACKUP-*.html
+*.bak
+*.backup
+
+# Redundant local source / editor copy (the deploy file is index.html)
+gilberto-pro-painting-boston-english-fixed*.html
+
+# Local preview / deploy-packaging artifacts (not needed on GitHub)
+netlify-deploy/
+*.zip
+
+# Tooling / editor / local config
+.claude/
+.vscode/
+.idea/
+node_modules/
+
+# OS / system files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Temp / logs
+*.tmp
+*.log
