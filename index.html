@@ -56,7 +56,7 @@
   /* ---------- SAFE MODE ----------
      If JavaScript fails, the preloader dismisses itself
      and all content still appears. */
-  html:not([data-js]) .preloader{animation:preFall .4s ease .25s forwards}
+  html:not([data-js]) .preloader{animation:preFall .4s ease .3s forwards}
   @keyframes preFall{to{transform:translateY(-101%);visibility:hidden}}
   html:not([data-js]) .h-fade,
   html:not([data-js]) .reveal,
@@ -1269,7 +1269,7 @@
     }
     if (reduced) { finishPre(); }
     else {
-      var t0 = performance.now(), dur = 200;
+      var t0 = performance.now(), dur = 300;
       (function tickPre(t){
         var p = Math.min((t - t0) / dur, 1);
         var e = 1 - Math.pow(1 - p, 3);
@@ -1280,7 +1280,7 @@
       // if the page is already fully loaded sooner, hide the splash immediately
       if (document.readyState === 'complete') finishPre();
       else addEventListener('load', finishPre);
-      setTimeout(finishPre, 250); // hard cap so the splash is never long
+      setTimeout(finishPre, 350); // hard cap so the splash is never long
     }
 
     /* ---------- custom cursor ---------- */
