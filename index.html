@@ -56,7 +56,7 @@
   /* ---------- SAFE MODE ----------
      If JavaScript fails, the preloader dismisses itself
      and all content still appears. */
-  html:not([data-js]) .preloader{animation:preFall .4s ease .3s forwards}
+  html:not([data-js]) .preloader{animation:preFall .4s ease .4s forwards}
   @keyframes preFall{to{transform:translateY(-101%);visibility:hidden}}
   html:not([data-js]) .h-fade,
   html:not([data-js]) .reveal,
@@ -144,13 +144,14 @@
   /* ---------- preloader ---------- */
   .preloader{
     position:fixed;inset:0;z-index:4000;background:var(--bg);
-    display:flex;align-items:center;justify-content:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
     transition:opacity .2s ease;
   }
   .preloader.done{opacity:0}
   .pre-brand{font:600 clamp(2rem,5vw,3.2rem) Georgia, 'Times New Roman', serif;letter-spacing:-.02em;text-align:center}
   .pre-brand b{color:var(--accent);font-weight:600}
   .pre-logo{width:clamp(200px,42vw,300px);height:auto;display:block}
+  .pre-name{margin-top:18px;font:600 clamp(1.1rem,3.4vw,1.6rem) Georgia, 'Times New Roman', serif;letter-spacing:-.01em;color:var(--ink);text-align:center}
   .pre-tag{display:block;margin-top:8px;font:500 .68rem 'Courier New', monospace;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-soft)}
   .pre-num{position:absolute;bottom:30px;right:34px;font:500 .78rem 'Courier New', monospace;color:var(--ink-soft)}
   .pre-bar{position:absolute;bottom:0;left:0;width:100%;height:2px;background:var(--line)}
@@ -776,7 +777,8 @@
 
   <!-- preloader -->
   <div class="preloader" id="preloader" aria-hidden="true">
-    <img class="pre-logo" src="img/logo-mark.png" alt="Gilberto Pro Painting" width="440" height="295">
+    <img class="pre-logo" src="img/logo-mark.png" alt="" width="440" height="295">
+    <span class="pre-name">Gilberto Pro Painting</span>
     <div class="pre-num" id="preNum">000</div>
     <div class="pre-bar"><i id="preBar"></i></div>
   </div>
@@ -1277,7 +1279,7 @@
     }
     if (reduced) { finishPre(); }
     else {
-      var t0 = performance.now(), dur = 300;
+      var t0 = performance.now(), dur = 400;
       (function tickPre(t){
         var p = Math.min((t - t0) / dur, 1);
         var e = 1 - Math.pow(1 - p, 3);
@@ -1288,7 +1290,7 @@
       // if the page is already fully loaded sooner, hide the splash immediately
       if (document.readyState === 'complete') finishPre();
       else addEventListener('load', finishPre);
-      setTimeout(finishPre, 350); // hard cap so the splash is never long
+      setTimeout(finishPre, 450); // hard cap so the splash is never long
     }
 
     /* ---------- custom cursor ---------- */
