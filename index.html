@@ -413,6 +413,9 @@
   .pg-viewport{overflow:hidden}
   .pg-track{display:flex;gap:12px;will-change:transform;
     transition:transform .6s cubic-bezier(.19,1,.22,1);touch-action:pan-y}
+  /* Touch/mobile: drop the persistent compositor layer that can leave the
+     carousel unpainted (blank) until a repaint on some mobile browsers */
+  @media (hover:none){ .pg-track{will-change:auto} }
   .pg-item{flex:0 0 auto;position:relative;display:block;padding:0;border:0;cursor:pointer;overflow:hidden;
     border-radius:6px;aspect-ratio:1/1;background:#100d09;box-shadow:0 1px 0 rgba(241,238,231,.06)}
   .pg-item img{width:100%;height:100%;object-fit:cover;display:block;
@@ -1583,6 +1586,11 @@
     layout();
     // relayout once images have decoded (heavy page)
     window.addEventListener('load', layout);
+    // On touch devices, lazy images inside the moving track may not load on transform;
+    // eager-load the carousel thumbnails so no slide shows blank (desktop stays lazy).
+    if (matchMedia('(hover:none)').matches) {
+      items.forEach(function(b){ var im = b.querySelector('img'); if (im) im.loading = 'eager'; });
+    }
 
     // auto-slide: starts when the carousel scrolls into view, one photo at a time.
     // A user interaction pauses autoplay and (re)starts a 5s timer; autoplay resumes
@@ -1610,7 +1618,7 @@
     function pauseAuto(){ haltAuto(); scheduleResume(); }
     if('IntersectionObserver' in window){
       var apObs = new IntersectionObserver(function(entries){
-        entries.forEach(function(en){ inView = en.isIntersecting; if(inView){ playAuto(); } else { haltAuto(); } });
+        entries.forEach(function(en){ inView = en.isIntersecting; if(inView){ if(matchMedia('(hover:none)').matches){ track.style.opacity='0.999'; requestAnimationFrame(function(){ track.style.opacity=''; }); } playAuto(); } else { haltAuto(); } });
       }, { threshold: 0.2 });
       apObs.observe(viewport);
     } else { inView = true; playAuto(); }
