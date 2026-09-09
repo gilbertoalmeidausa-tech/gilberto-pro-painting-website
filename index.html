@@ -1627,11 +1627,28 @@
       prevB.disabled = index <= 0;
       nextB.disabled = index >= maxIndex;
     }
+    var layoutRetries = 0;
     function layout(){
       perPage = perPageFor();
-      var vw = viewport.clientWidth;
+      // Measure defensively: fall back through clientWidth -> getBoundingClientRect ->
+      // the window itself, so a momentarily unmeasurable container can never yield 0.
+      var vw = viewport.clientWidth || Math.round(viewport.getBoundingClientRect().width);
+      if(!(vw > 0)) vw = window.innerWidth - 32;
       slideW = (vw - GAP * (perPage - 1)) / perPage;
-      items.forEach(function(it){ it.style.width = slideW + 'px'; });
+      // Never write a zero/NaN size onto the slides: that collapses the whole carousel
+      // to nothing. Retry on the next frame instead, until a real width is available.
+      if(!(slideW > 0)){
+        if(layoutRetries++ < 20) requestAnimationFrame(layout);
+        return;
+      }
+      layoutRetries = 0;
+      // Set the height explicitly alongside the width (slides are square) so the slide
+      // box never depends on CSS aspect-ratio resolving on the element. aspect-ratio
+      // stays in the stylesheet purely as the pre-JS fallback.
+      items.forEach(function(it){
+        it.style.width = slideW + 'px';
+        it.style.height = slideW + 'px';
+      });
       maxIndex = Math.max(0, items.length - perPage);
       if(index > maxIndex) index = maxIndex;
       apply(false);
@@ -1768,5 +1785,61 @@
   })();
   </script>
   <!-- ===PG-LIGHTBOX-END=== -->
+<script>
+/* Temporary on-device diagnostic. Runs ONLY when the URL ends in ?diag=1 —
+   it is completely inert for every normal visitor. Remove once the mobile
+   carousel issue is confirmed fixed. */
+(function(){
+  if (location.search.indexOf('diag=1') === -1) return;
+  var errs = [];
+  window.addEventListener('error', function(e){ errs.push(e.message); });
+  function run(){
+    var vp = document.querySelector('.pg-viewport');
+    var track = document.getElementById('pgTrack');
+    var items = track ? track.querySelectorAll('.pg-item') : [];
+    var L = [];
+    function add(k,v){ L.push(k+': '+v); }
+    add('UA', navigator.userAgent.slice(0,90));
+    add('screen', window.innerWidth+'x'+window.innerHeight+' dpr'+window.devicePixelRatio);
+    add('found vp/track/items', (!!vp)+'/'+(!!track)+'/'+items.length);
+    if (vp && items.length){
+      var vr = vp.getBoundingClientRect();
+      add('viewport box', Math.round(vr.width)+'x'+Math.round(vr.height));
+      add('scrollWidth/clientWidth', vp.scrollWidth+'/'+vp.clientWidth);
+      add('can scroll', vp.scrollWidth > vp.clientWidth);
+      add('scrollLeft', Math.round(vp.scrollLeft));
+      var vs = getComputedStyle(vp);
+      add('overflowX / snap', vs.overflowX+' / '+vs.scrollSnapType);
+      var invisible = 0, zeroH = 0;
+      for (var i=0;i<items.length;i++){
+        var s = getComputedStyle(items[i]);
+        if (parseFloat(s.opacity) < 0.99) invisible++;
+        if (items[i].getBoundingClientRect().height < 5) zeroH++;
+      }
+      add('SLIDES INVISIBLE', invisible+' of '+items.length);
+      add('SLIDES ZERO-HEIGHT', zeroH+' of '+items.length);
+      var i0 = items[0], r0 = i0.getBoundingClientRect(), s0 = getComputedStyle(i0);
+      add('slide0 box', Math.round(r0.width)+'x'+Math.round(r0.height));
+      add('slide0 opacity', s0.opacity);
+      add('slide0 class', i0.className);
+      add('slide0 aspect-ratio', s0.aspectRatio);
+      var im = i0.querySelector('img');
+      if (im) add('slide0 img', 'loaded='+(im.complete && im.naturalWidth>0)+' nat='+im.naturalWidth+'x'+im.naturalHeight+' box='+Math.round(im.getBoundingClientRect().width)+'x'+Math.round(im.getBoundingClientRect().height));
+    }
+    add('supports aspect-ratio', (window.CSS && CSS.supports) ? CSS.supports('aspect-ratio','1/1') : 'n/a');
+    add('supports scroll-snap', (window.CSS && CSS.supports) ? CSS.supports('scroll-snap-type','x mandatory') : 'n/a');
+    add('has IntersectionObserver', ('IntersectionObserver' in window));
+    add('FIX PRESENT', !!document.querySelector('#pgTrack .pg-item') && getComputedStyle(document.querySelector('#pgTrack .pg-item')).opacity === '1');
+    add('JS errors', errs.length ? errs.join(' | ').slice(0,160) : 'none');
+
+    var box = document.createElement('div');
+    box.setAttribute('style','position:fixed;left:0;right:0;top:0;bottom:0;z-index:99999;background:#0b1220;color:#7CFF8A;font:13px/1.5 monospace;padding:14px;overflow:auto;-webkit-overflow-scrolling:touch;white-space:pre-wrap;word-break:break-word');
+    box.textContent = 'GILBERTO SITE — CAROUSEL DIAGNOSTIC\n(screenshot this whole screen)\n\n' + L.join('\n');
+    document.body.appendChild(box);
+  }
+  if (document.readyState === 'complete') setTimeout(run, 2500);
+  else window.addEventListener('load', function(){ setTimeout(run, 2500); });
+})();
+</script>
 </body>
 </html>
