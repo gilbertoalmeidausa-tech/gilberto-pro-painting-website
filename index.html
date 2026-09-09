@@ -429,6 +429,12 @@
   .pg-track{display:flex;gap:12px}
   .pg-item{flex:0 0 auto;position:relative;display:block;padding:0;border:0;cursor:pointer;overflow:hidden;
     scroll-snap-align:start;border-radius:6px;aspect-ratio:1/1;background:#100d09;box-shadow:0 1px 0 rgba(241,238,231,.06)}
+  /* Carousel slides must never rely on the .reveal scroll-in animation: they live
+     inside a horizontally scrolling, clipped container, so IntersectionObserver only
+     ever sees the one or two slides currently in the scroll window. Every other slide
+     stayed at .reveal's opacity:0, so swiping or tapping an arrow landed on an
+     invisible slide and the carousel looked blank. Keep them permanently visible. */
+  #pgTrack .pg-item.reveal{opacity:1;transform:none}
   .pg-item img{width:100%;height:100%;object-fit:cover;display:block;
     filter:contrast(1.02) brightness(.96);
     transition:transform .9s cubic-bezier(.19,1,.22,1),filter .5s ease}
