@@ -419,20 +419,16 @@
     color:var(--accent);display:block;margin-bottom:14px}
   .pg-lead{font:500 clamp(1.15rem,1.8vw,1.55rem) Georgia,'Times New Roman',serif;
     color:rgba(241,238,231,.82);max-width:46ch;letter-spacing:-.01em;margin-bottom:clamp(28px,4vw,44px)}
-  .pg-viewport{overflow:hidden}
-  .pg-track{display:flex;gap:12px;will-change:transform;
-    transition:transform .6s cubic-bezier(.19,1,.22,1);touch-action:pan-y}
-  /* Touch/mobile: drop the persistent compositor layer that can leave the
-     carousel unpainted (blank) until a repaint on some mobile browsers */
-  @media (hover:none){
-    .pg-track{will-change:auto}
-    /* Safari/iOS can leave slides unpainted inside a transformed, clipped flex row.
-       Promoting each photo to its own persistent GPU layer forces every slide to
-       paint as soon as it decodes, independent of scroll/transform timing. */
-    .pg-item img{transform:translateZ(0);-webkit-backface-visibility:hidden;backface-visibility:hidden}
-  }
+  /* Native horizontal scroll + snap drives the carousel (instead of a JS-computed
+     transform): swipe/drag is then handled entirely by the browser itself, which
+     sidesteps rendering/loading quirks some mobile browsers have with content that
+     is only visible via a transformed, clipped container. */
+  .pg-viewport{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+    scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none}
+  .pg-viewport::-webkit-scrollbar{display:none;height:0}
+  .pg-track{display:flex;gap:12px}
   .pg-item{flex:0 0 auto;position:relative;display:block;padding:0;border:0;cursor:pointer;overflow:hidden;
-    border-radius:6px;aspect-ratio:1/1;background:#100d09;box-shadow:0 1px 0 rgba(241,238,231,.06)}
+    scroll-snap-align:start;border-radius:6px;aspect-ratio:1/1;background:#100d09;box-shadow:0 1px 0 rgba(241,238,231,.06)}
   .pg-item img{width:100%;height:100%;object-fit:cover;display:block;
     filter:contrast(1.02) brightness(.96);
     transition:transform .9s cubic-bezier(.19,1,.22,1),filter .5s ease}
@@ -1596,22 +1592,34 @@
         prevB = document.getElementById('pgCarPrev'),
         nextB = document.getElementById('pgCarNext'),
         GAP = 12, index = 0, perPage = 4, slideW = 0, maxIndex = 0,
-        isTouch = matchMedia('(hover:none)').matches;
+        scrollTid = null;
 
     function perPageFor(){ var w = window.innerWidth; if(w < 600) return 1; if(w < 900) return 2; return 4; }
+    // Native scrollTo({behavior:'smooth'}) isn't reliably honored everywhere, so we
+    // drive the slide animation ourselves with requestAnimationFrame — this only
+    // ever needs plain scrollLeft assignment, which every browser supports.
+    var scrollAnimId = null;
+    function smoothScrollTo(targetLeft, duration){
+      if(scrollAnimId !== null){ cancelAnimationFrame(scrollAnimId); scrollAnimId = null; }
+      var startLeft = viewport.scrollLeft, delta = targetLeft - startLeft, startTime = null;
+      if(Math.abs(delta) < 1){ viewport.scrollLeft = targetLeft; return; }
+      viewport.style.scrollSnapType = 'none';
+      function step(ts){
+        if(startTime === null){ startTime = ts; }
+        var p = Math.min((ts - startTime) / duration, 1);
+        var eased = 1 - Math.pow(1 - p, 3);
+        viewport.scrollLeft = startLeft + delta * eased;
+        if(p < 1){ scrollAnimId = requestAnimationFrame(step); }
+        else { scrollAnimId = null; viewport.style.scrollSnapType = ''; }
+      }
+      scrollAnimId = requestAnimationFrame(step);
+    }
     function apply(animate){
-      if(animate === false){ track.style.transition = 'none'; }
-      track.style.transform = 'translateX(' + (-(index * (slideW + GAP))) + 'px)';
-      if(animate === false){ void track.offsetWidth; track.style.transition = ''; }
+      var target = index * (slideW + GAP);
+      if(animate === false){ viewport.scrollLeft = target; }
+      else { smoothScrollTo(target, 450); }
       prevB.disabled = index <= 0;
       nextB.disabled = index >= maxIndex;
-      // Touch browsers can leave the newly-scrolled-in slide unpainted (blank) inside
-      // the transformed/clipped track; nudge a repaint on every slide change so each
-      // photo actually renders, whether reached by autoplay, arrow, or swipe.
-      if(isTouch){
-        track.style.opacity = '0.999';
-        requestAnimationFrame(function(){ track.style.opacity = ''; });
-      }
     }
     function layout(){
       perPage = perPageFor();
@@ -1626,14 +1634,24 @@
     prevB.addEventListener('click', function(){ go(-1); });
     nextB.addEventListener('click', function(){ go(1); });
 
-    // carousel swipe (mobile)
-    var sx = 0, sy = 0, sdrag = false;
-    viewport.addEventListener('touchstart', function(e){ var t = e.touches[0]; sx = t.clientX; sy = t.clientY; sdrag = true; }, {passive:true});
-    viewport.addEventListener('touchend', function(e){
-      if(!sdrag) return; sdrag = false;
-      var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
-      if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
-    }, {passive:true});
+    // Swipe/drag is native (scroll-snap on .pg-viewport). A real user gesture
+    // (touch/trackpad/wheel) always fires one of these events; our own
+    // viewport.scrollTo() calls in apply() never do — so this reliably tells
+    // user-driven scrolling apart from programmatic scrolling, with no timing
+    // guesswork. We just pause autoplay on genuine input, and resync
+    // `index`/arrow state once any scroll (ours or the user's) settles.
+    ['touchstart', 'pointerdown', 'wheel'].forEach(function(evt){
+      viewport.addEventListener(evt, function(){ pauseAuto(); }, { passive: true });
+    });
+    viewport.addEventListener('scroll', function(){
+      clearTimeout(scrollTid);
+      scrollTid = setTimeout(function(){
+        var newIndex = Math.round(viewport.scrollLeft / (slideW + GAP));
+        index = Math.max(0, Math.min(maxIndex, newIndex));
+        prevB.disabled = index <= 0;
+        nextB.disabled = index >= maxIndex;
+      }, 120);
+    }, { passive: true });
 
     var rtid; window.addEventListener('resize', function(){ clearTimeout(rtid); rtid = setTimeout(layout, 150); });
     if(window.ResizeObserver){ new ResizeObserver(function(){ layout(); }).observe(viewport); }
@@ -1672,7 +1690,7 @@
     function pauseAuto(){ haltAuto(); scheduleResume(); }
     if('IntersectionObserver' in window){
       var apObs = new IntersectionObserver(function(entries){
-        entries.forEach(function(en){ inView = en.isIntersecting; if(inView){ if(matchMedia('(hover:none)').matches){ track.style.opacity='0.999'; requestAnimationFrame(function(){ track.style.opacity=''; }); } playAuto(); } else { haltAuto(); } });
+        entries.forEach(function(en){ inView = en.isIntersecting; if(inView){ playAuto(); } else { haltAuto(); } });
       }, { threshold: 0.2 });
       apObs.observe(viewport);
     } else { inView = true; playAuto(); }
